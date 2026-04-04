@@ -1,4 +1,11 @@
-// Find our date picker inputs on the page
+// This is the main file for the APOD page.
+// Big picture:
+// 1) read the dates the user picked
+// 2) request APOD data
+// 3) build the gallery cards
+// 4) open a modal when a card is clicked
+
+// Grab all the page elements we need so we can update them with JavaScript.
 const startInput = document.getElementById('startDate');
 const endInput = document.getElementById('endDate');
 const fetchButton = document.querySelector('.filters button');
@@ -11,30 +18,29 @@ const modalTitle = document.getElementById('modalTitle');
 const modalDate = document.getElementById('modalDate');
 const modalExplanation = document.getElementById('modalExplanation');
 
-// We keep currently displayed items so we can open the correct one in the modal.
+// Save the 6 cards currently shown in the gallery.
+// Each card stores an index, so we use this array to find the full data later.
 let currentGalleryItems = [];
 
-// We call our own backend endpoint first. The backend keeps the real API key private.
+// First choice: call our backend proxy (safer because key stays on server).
 const APOD_PROXY_URL = '/api/apod';
 
-// This direct URL is only a fallback for local classroom testing.
+// Backup choice: call NASA directly (mostly for local classroom testing).
 const APOD_DIRECT_URL = 'https://api.nasa.gov/planetary/apod';
 
-// If the backend is unavailable locally, we can still test with a local key file.
+// Local key from js/config.js. If it is missing, use NASA DEMO_KEY.
 const LOCAL_API_KEY = window.NASA_API_KEY || 'DEMO_KEY';
 
-// Call the setupDateInputs function from dateRange.js
-// This sets up the date pickers to:
-// - Default to a range of 9 days (from 9 days ago to today)
-// - Restrict dates to NASA's image archive (starting from 1995)
+// Set up date input rules/defaults from dateRange.js.
 setupDateInputs(startInput, endInput);
 
-// Listen for button click and load APOD data for the chosen dates
+// Button click starts the APOD request using the selected date range.
 fetchButton.addEventListener('click', () => {
 	getApodImages(startInput.value, endInput.value);
 });
 
-// Event delegation: one listener handles clicks for all gallery cards.
+// One click listener handles all cards, including cards added later.
+// This works well because cards are generated dynamically.
 gallery.addEventListener('click', (event) => {
 	const card = event.target.closest('.gallery-item');
 
@@ -45,7 +51,7 @@ gallery.addEventListener('click', (event) => {
 	openModalFromCard(card);
 });
 
-// Keyboard support: Enter or Space opens the focused card.
+// Keyboard support: Enter or Space opens the selected card in the modal.
 gallery.addEventListener('keydown', (event) => {
 	if (event.key !== 'Enter' && event.key !== ' ') {
 		return;
@@ -63,14 +69,14 @@ gallery.addEventListener('keydown', (event) => {
 
 modalCloseBtn.addEventListener('click', closeModal);
 
-// Close when clicking the dark background outside the modal box.
+// Close modal when the dark background is clicked.
 apodModal.addEventListener('click', (event) => {
 	if (event.target === apodModal) {
 		closeModal();
 	}
 });
 
-// Escape key closes modal for easier usability.
+// Escape key closes the modal too.
 document.addEventListener('keydown', (event) => {
 	if (event.key === 'Escape' && !apodModal.hidden) {
 		closeModal();
@@ -78,6 +84,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 function openModalFromCard(card) {
+	// Get the clicked card index and find the real APOD object.
 	const itemIndex = Number(card.dataset.index);
 	const selectedItem = currentGalleryItems[itemIndex];
 
@@ -85,6 +92,8 @@ function openModalFromCard(card) {
 		return;
 	}
 
+	// APOD entries can be image or video.
+	// We show exactly one media type at a time in the modal.
 	if (selectedItem.media_type === 'video') {
 		modalImage.hidden = true;
 		modalVideo.hidden = false;
@@ -98,15 +107,18 @@ function openModalFromCard(card) {
 		modalImage.alt = selectedItem.title;
 	}
 
+	// Fill in the text fields under the media.
 	modalTitle.textContent = selectedItem.title;
 	modalDate.textContent = `${selectedItem.date} ${selectedItem.media_type === 'video' ? '• Video' : '• Image'}`;
 	modalExplanation.textContent = selectedItem.explanation || 'No explanation text available.';
 
+	// Show modal and stop background scrolling while it is open.
 	apodModal.hidden = false;
 	document.body.style.overflow = 'hidden';
 }
 
 function closeModal() {
+	// Reset modal back to a clean state each time it closes.
 	apodModal.hidden = true;
 	modalImage.src = '';
 	modalVideo.src = '';
@@ -115,16 +127,18 @@ function closeModal() {
 	document.body.style.overflow = '';
 }
 
-// This helper gets APOD data in two steps:
-// 1) Try the secure backend proxy (best option)
-// 2) If proxy is unavailable in local development, use direct NASA call as fallback
+// Fetch helper:
+// 1) try the proxy first
+// 2) if proxy fails locally, fall back to direct NASA call
 async function fetchApodData(startDate, endDate) {
+	// Build query string for start/end dates.
 	const params = new URLSearchParams({
 		start_date: startDate,
 		end_date: endDate
 	});
 
 	try {
+		// Best path: backend proxy keeps key private.
 		const proxyResponse = await fetch(`${APOD_PROXY_URL}?${params.toString()}`);
 
 		if (!proxyResponse.ok) {
@@ -133,7 +147,8 @@ async function fetchApodData(startDate, endDate) {
 
 		return await proxyResponse.json();
 	} catch (proxyError) {
-		// Fallback keeps classwork running on a local static server.
+		// Fallback for local/static runs.
+		// Uses LOCAL_API_KEY from config.js (or DEMO_KEY).
 		console.warn('Proxy unavailable, using direct NASA fallback.', proxyError);
 
 		const directParams = new URLSearchParams({
@@ -154,20 +169,23 @@ async function fetchApodData(startDate, endDate) {
 }
 
 async function getApodImages(startDate, endDate) {
-	// If modal was open from a previous gallery, close it before new results load.
+	// Close old modal state before loading a fresh gallery.
 	closeModal();
 	currentGalleryItems = [];
 
+	// Must have both dates selected.
 	if (!startDate || !endDate) {
 		gallery.innerHTML = '<p class="placeholder">Please choose both a start date and an end date.</p>';
 		return;
 	}
 
+	// Start date cannot be after end date.
 	if (startDate > endDate) {
 		gallery.innerHTML = '<p class="placeholder">Start date must be before or equal to end date.</p>';
 		return;
 	}
 
+	// Show loading message while waiting for API response.
 	gallery.innerHTML = '<p class="loading-message">Loading space… please enjoy this scientifically accurate pause.</p>';
 
 	try {
@@ -179,10 +197,11 @@ async function getApodImages(startDate, endDate) {
 }
 
 function renderGallery(items) {
-	// API can return one object or an array; we always display an array
+	// APOD can return one item or an array.
+	// Convert everything to an array so rendering is simpler.
 	const itemList = Array.isArray(items) ? items : [items];
 
-	// Keep entries users can open: image and video APOD items.
+	// Keep only media types our UI can display.
 	const mediaList = itemList.filter((item) => item.media_type === 'image' || item.media_type === 'video');
 
 	if (mediaList.length === 0) {
@@ -190,14 +209,17 @@ function renderGallery(items) {
 		return;
 	}
 
-	// Show newest items first
+	// Newest first so users see latest APOD at top.
 	mediaList.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-	// Only display 6 cards so the layout stays at 2 rows x 3 columns.
+	// Limit to 6 cards (2 rows x 3 columns on desktop layout).
 	const visibleItems = mediaList.slice(0, 6);
 	currentGalleryItems = visibleItems;
 
 	const cards = visibleItems.map((item, index) => {
+		// Build card media section:
+		// - video card gets thumbnail (if available) + modal hint
+		// - image card gets normal image element
 		const isVideo = item.media_type === 'video';
 		const imageUrl = item.url || item.hdurl;
 		const cardMedia = isVideo

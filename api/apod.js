@@ -1,39 +1,47 @@
 // Vercel Serverless Function: /api/apod
 // This file runs on the server, not in the browser.
 // That means we can safely read process.env.NASA_API_KEY here.
+//
+// Simple request flow:
+// 1) Frontend sends start_date and end_date to /api/apod
+// 2) This function validates input + checks throttle
+// 3) Server calls NASA APOD with private key
+// 4) Server returns data to frontend
 
 const NASA_APOD_URL = 'https://api.nasa.gov/planetary/apod';
 
-// Simple per-IP throttle settings:
+// Per-IP throttle settings:
 // - WINDOW_MS: how long each time window lasts
 // - MAX_REQUESTS_PER_WINDOW: how many requests one IP can make in that window
 const WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 20;
 
-// In-memory store for request counts by IP.
-// Note: This is beginner-friendly and works well for class projects.
+// In-memory request counter by IP address.
+// This is great for class projects and small demos.
 // In production with multiple server instances, use Redis or a database.
 const requestLog = new Map();
 
 function getClientIp(request) {
-  // x-forwarded-for may contain a list like "ip1, ip2".
-  // We use the first IP (original client) when available.
+  // x-forwarded-for can contain a list like "ip1, ip2".
+  // First value is usually the real client IP.
   const forwarded = request.headers['x-forwarded-for'];
 
   if (typeof forwarded === 'string' && forwarded.length > 0) {
     return forwarded.split(',')[0].trim();
   }
 
-  // Fallback values for local testing or environments without forwarding headers.
+  // Fallback for local testing.
   return request.socket?.remoteAddress || 'unknown-client';
 }
 
 function isRateLimited(clientIp) {
+  // Get current time and this IP's existing record (if any).
   const now = Date.now();
   const entry = requestLog.get(clientIp);
 
   // First request from this IP, start tracking.
   if (!entry) {
+    // No record yet, so create one.
     requestLog.set(clientIp, { count: 1, windowStart: now });
     return { limited: false, retryAfterSeconds: 0 };
   }
@@ -42,6 +50,7 @@ function isRateLimited(clientIp) {
 
   // If the time window has passed, reset counter.
   if (elapsed > WINDOW_MS) {
+    // Old window expired, so start a new one.
     requestLog.set(clientIp, { count: 1, windowStart: now });
     return { limited: false, retryAfterSeconds: 0 };
   }
@@ -51,6 +60,7 @@ function isRateLimited(clientIp) {
   requestLog.set(clientIp, entry);
 
   if (entry.count > MAX_REQUESTS_PER_WINDOW) {
+    // Tell user how many seconds are left before trying again.
     const retryAfterMs = WINDOW_MS - elapsed;
     const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
     return { limited: true, retryAfterSeconds };
@@ -60,6 +70,8 @@ function isRateLimited(clientIp) {
 }
 
 export default async function handler(request, response) {
+  // Every request to /api/apod goes through this function.
+  // We always return JSON so frontend handling is consistent.
   // This endpoint is read-only, so we only allow GET requests.
   if (request.method !== 'GET') {
     return response.status(405).json({
@@ -82,6 +94,8 @@ export default async function handler(request, response) {
   const throttleStatus = isRateLimited(clientIp);
 
   if (throttleStatus.limited) {
+    // 429 = Too Many Requests.
+    // Retry-After is a standard header that says when to try again.
     response.setHeader('Retry-After', String(throttleStatus.retryAfterSeconds));
     return response.status(429).json({
       error: `Too many requests. Please try again in ${throttleStatus.retryAfterSeconds} seconds.`
@@ -106,6 +120,7 @@ export default async function handler(request, response) {
   });
 
   try {
+    // Ask NASA for entries in this date range.
     const nasaResponse = await fetch(`${NASA_APOD_URL}?${params.toString()}`);
     const nasaData = await nasaResponse.json();
 
