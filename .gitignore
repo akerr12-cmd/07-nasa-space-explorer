@@ -1,0 +1,5 @@
+# Local secrets and environment-specific files
+js/config.js
+
+# Vercel local metadata
+.vercel/
