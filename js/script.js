@@ -36,10 +36,6 @@ fetchButton.addEventListener('click', () => {
 
 // Event delegation: one listener handles clicks for all gallery cards.
 gallery.addEventListener('click', (event) => {
-	if (event.target.closest('.video-link')) {
-		return;
-	}
-
 	const card = event.target.closest('.gallery-item');
 
 	if (!card) {
@@ -208,7 +204,7 @@ function renderGallery(items) {
 			? `
 				<div class="video-preview">
 					${item.thumbnail_url ? `<img src="${item.thumbnail_url}" alt="Video preview: ${item.title}" loading="lazy" />` : '<div class="video-fallback">🎬 Video entry</div>'}
-					<a class="video-link" href="${item.url}" target="_blank" rel="noopener noreferrer">Watch video</a>
+					<p class="video-label">Click to open video in modal</p>
 				</div>
 			`
 			: `<img src="${imageUrl}" alt="${item.title}" loading="lazy" />`;

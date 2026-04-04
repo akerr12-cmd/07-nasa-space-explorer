@@ -175,18 +175,13 @@ button:hover {
   font-weight: 700;
 }
 
-.video-link {
+.video-label {
   align-self: flex-start;
-  background: var(--nasa-red);
-  color: #ffffff;
-  text-decoration: none;
+  background: rgba(252, 61, 33, 0.14);
+  color: var(--nasa-red);
   padding: 7px 12px;
   border-radius: 8px;
   font-weight: 700;
-}
-
-.video-link:hover {
-  background: #d83118;
 }
 
 .gallery-item h2 {
