@@ -238,8 +238,8 @@ function renderGallery(items) {
 	// Newest first so users see latest APOD at top.
 	mediaList.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-	// Limit to 6 cards (2 rows x 3 columns on desktop layout).
-	const visibleItems = mediaList.slice(0, 6);
+	// Limit to 9 cards to match the project rubric requirement.
+	const visibleItems = mediaList.slice(0, 9);
 	currentGalleryItems = visibleItems;
 
 	const cards = visibleItems.map((item, index) => {
