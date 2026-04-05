@@ -68,6 +68,26 @@ h1 {
   backdrop-filter: blur(4px);
 }
 
+/* Random fact section shown above gallery */
+.space-fact {
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(120deg, rgba(11, 61, 145, 0.32), rgba(252, 61, 33, 0.2));
+}
+
+.space-fact h2 {
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.5px;
+  font-size: 1.5rem;
+}
+
+.space-fact p {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
 /* Inputs and buttons */
 input[type="date"],
 button {
@@ -154,6 +174,12 @@ button:hover {
   object-fit: cover;
   border-radius: 8px;
   border: 2px solid rgba(11, 61, 145, 0.18);
+  transition: transform 0.3s ease;
+}
+
+.gallery-item:hover img,
+.gallery-item:focus-visible img {
+  transform: scale(1.06);
 }
 
 .video-preview {

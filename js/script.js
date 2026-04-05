@@ -17,6 +17,18 @@ const modalVideo = document.getElementById('modalVideo');
 const modalTitle = document.getElementById('modalTitle');
 const modalDate = document.getElementById('modalDate');
 const modalExplanation = document.getElementById('modalExplanation');
+const randomSpaceFactText = document.getElementById('randomSpaceFact');
+
+// A small fact bank for the "Did You Know?" section.
+// We pick one fact at random when the page loads.
+const spaceFacts = [
+	'The footprints left on the Moon can last for millions of years because there is no wind or rain there.',
+	'A day on Venus is longer than a year on Venus. It spins very slowly but orbits the Sun faster.',
+	'Neutron stars are so dense that one teaspoon of their material would weigh about a billion tons on Earth.',
+	'Jupiter is so large that more than 1,300 Earths could fit inside it.',
+	'Light from the Sun takes about 8 minutes and 20 seconds to reach Earth.',
+	'The International Space Station travels around Earth at about 17,500 miles per hour.'
+];
 
 // Save the 6 cards currently shown in the gallery.
 // Each card stores an index, so we use this array to find the full data later.
@@ -33,6 +45,20 @@ const LOCAL_API_KEY = window.NASA_API_KEY || 'DEMO_KEY';
 
 // Set up date input rules/defaults from dateRange.js.
 setupDateInputs(startInput, endInput);
+
+// Show one random fact each time the page is refreshed.
+showRandomSpaceFact();
+
+function showRandomSpaceFact() {
+	if (!randomSpaceFactText) {
+		return;
+	}
+
+	// Math.random() gives a number from 0 up to (but not including) 1.
+	// Multiplying by array length and flooring gives a valid random index.
+	const randomIndex = Math.floor(Math.random() * spaceFacts.length);
+	randomSpaceFactText.textContent = spaceFacts[randomIndex];
+}
 
 // Button click starts the APOD request using the selected date range.
 fetchButton.addEventListener('click', () => {
