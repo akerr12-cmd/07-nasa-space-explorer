@@ -14,6 +14,9 @@ const apodModal = document.getElementById('apodModal');
 const modalCloseBtn = document.getElementById('modalCloseBtn');
 const modalImage = document.getElementById('modalImage');
 const modalVideo = document.getElementById('modalVideo');
+const modalVideoPlayer = document.getElementById('modalVideoPlayer');
+const modalVideoFallback = document.getElementById('modalVideoFallback');
+const modalVideoLink = document.getElementById('modalVideoLink');
 const modalTitle = document.getElementById('modalTitle');
 const modalDate = document.getElementById('modalDate');
 const modalExplanation = document.getElementById('modalExplanation');
@@ -30,7 +33,7 @@ const spaceFacts = [
 	'The International Space Station travels around Earth at about 17,500 miles per hour.'
 ];
 
-// Save the 6 cards currently shown in the gallery.
+// Save the cards currently shown in the gallery (up to 9).
 // Each card stores an index, so we use this array to find the full data later.
 let currentGalleryItems = [];
 
@@ -49,6 +52,12 @@ setupDateInputs(startInput, endInput);
 // Show one random fact each time the page is refreshed.
 showRandomSpaceFact();
 
+// Function: showRandomSpaceFact
+// What it does:
+// - Picks one fact from the spaceFacts array.
+// - Writes that fact into the "Did You Know?" paragraph.
+// Why we check first:
+// - If the paragraph is missing from HTML, we exit early to avoid errors.
 function showRandomSpaceFact() {
 	if (!randomSpaceFactText) {
 		return;
@@ -109,6 +118,14 @@ document.addEventListener('keydown', (event) => {
 	}
 });
 
+// Function: openModalFromCard
+// Input:
+// - card: the gallery card element the user clicked.
+// What it does:
+// - Reads the card's data-index to find the matching APOD item in currentGalleryItems.
+// - Shows image mode or video mode in the modal.
+// - Fills in title, date, and explanation text.
+// - Opens the modal and prevents page scrolling.
 function openModalFromCard(card) {
 	// Get the clicked card index and find the real APOD object.
 	const itemIndex = Number(card.dataset.index);
@@ -121,13 +138,29 @@ function openModalFromCard(card) {
 	// APOD entries can be image or video.
 	// We show exactly one media type at a time in the modal.
 	if (selectedItem.media_type === 'video') {
+		const videoSource = getModalVideoSource(selectedItem.url);
+
 		modalImage.hidden = true;
-		modalVideo.hidden = false;
-		modalVideo.src = selectedItem.url;
-		modalVideo.title = selectedItem.title;
+		modalVideo.hidden = true;
+		modalVideoPlayer.hidden = true;
+		modalVideoFallback.hidden = true;
+
+		if (videoSource.type === 'embed') {
+			modalVideo.hidden = false;
+			modalVideo.src = videoSource.url;
+			modalVideo.title = selectedItem.title;
+		} else if (videoSource.type === 'file') {
+			modalVideoPlayer.hidden = false;
+			modalVideoPlayer.src = videoSource.url;
+		} else {
+			modalVideoFallback.hidden = false;
+			modalVideoLink.href = selectedItem.url || '#';
+		}
 	} else {
 		const largeImageUrl = selectedItem.hdurl || selectedItem.url;
 		modalVideo.hidden = true;
+		modalVideoPlayer.hidden = true;
+		modalVideoFallback.hidden = true;
 		modalImage.hidden = false;
 		modalImage.src = largeImageUrl;
 		modalImage.alt = selectedItem.title;
@@ -143,19 +176,85 @@ function openModalFromCard(card) {
 	document.body.style.overflow = 'hidden';
 }
 
+// Function: closeModal
+// What it does:
+// - Hides the modal window.
+// - Clears image/video sources so old media is not kept in memory.
+// - Resets modal elements to their default hidden/visible state.
+// - Re-enables page scrolling.
 function closeModal() {
 	// Reset modal back to a clean state each time it closes.
 	apodModal.hidden = true;
 	modalImage.src = '';
 	modalVideo.src = '';
+	modalVideoPlayer.src = '';
+	modalVideoLink.href = '#';
 	modalVideo.hidden = true;
+	modalVideoPlayer.hidden = true;
+	modalVideoFallback.hidden = true;
 	modalImage.hidden = false;
 	document.body.style.overflow = '';
+}
+
+// Function: getModalVideoSource
+// Input:
+// - rawUrl: video URL from the APOD response.
+// Output:
+// - Object with { type, url } where type is:
+//   - 'embed' for iframe-friendly links (YouTube/Vimeo)
+//   - 'file' for direct video files like .mp4
+//   - 'unsupported' when we cannot safely embed/play inline
+// Why this exists:
+// - APOD video links come in different formats, so we normalize them first.
+function getModalVideoSource(rawUrl) {
+	if (!rawUrl) {
+		return { type: 'unsupported', url: '' };
+	}
+
+	const url = rawUrl.trim();
+
+	// Direct video files should use the HTML5 <video> element.
+	if (/\.(mp4|webm|ogg)(\?|#|$)/i.test(url)) {
+		return { type: 'file', url };
+	}
+
+	// YouTube URL support.
+	const youtubeEmbedMatch = url.match(/youtube\.com\/embed\/([^?&/]+)/i);
+	if (youtubeEmbedMatch && youtubeEmbedMatch[1]) {
+		return { type: 'embed', url: `https://www.youtube.com/embed/${youtubeEmbedMatch[1]}?rel=0` };
+	}
+
+	const youtubeWatchMatch = url.match(/youtube\.com\/watch\?v=([^?&/]+)/i);
+	if (youtubeWatchMatch && youtubeWatchMatch[1]) {
+		return { type: 'embed', url: `https://www.youtube.com/embed/${youtubeWatchMatch[1]}?rel=0` };
+	}
+
+	const youtubeShortMatch = url.match(/youtu\.be\/([^?&/]+)/i);
+	if (youtubeShortMatch && youtubeShortMatch[1]) {
+		return { type: 'embed', url: `https://www.youtube.com/embed/${youtubeShortMatch[1]}?rel=0` };
+	}
+
+	// Vimeo URL support.
+	const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+	if (vimeoMatch && vimeoMatch[1]) {
+		return { type: 'embed', url: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
+	}
+
+	return { type: 'unsupported', url };
 }
 
 // Fetch helper:
 // 1) try the proxy first
 // 2) if proxy fails locally, fall back to direct NASA call
+// Function: fetchApodData
+// Input:
+// - startDate and endDate (YYYY-MM-DD strings from date inputs)
+// Output:
+// - APOD JSON data (array or single object depending on API response)
+// What it does:
+// - Builds query parameters.
+// - Tries the backend proxy first (safer API key handling).
+// - If proxy is unavailable, uses direct NASA call as fallback.
 async function fetchApodData(startDate, endDate) {
 	// Build query string for start/end dates.
 	const params = new URLSearchParams({
@@ -194,6 +293,15 @@ async function fetchApodData(startDate, endDate) {
 	}
 }
 
+// Function: getApodImages
+// Input:
+// - startDate and endDate from the user.
+// What it does:
+// - Resets modal/gallery state for a fresh load.
+// - Validates date input.
+// - Shows a loading message.
+// - Requests APOD data and passes it to renderGallery.
+// - Shows a readable error message if something fails.
 async function getApodImages(startDate, endDate) {
 	// Close old modal state before loading a fresh gallery.
 	closeModal();
@@ -222,6 +330,66 @@ async function getApodImages(startDate, endDate) {
 	}
 }
 
+// Function: getVideoPreviewUrl
+// Input:
+// - item: one APOD object.
+// Output:
+// - A thumbnail image URL string, or '' if none is available.
+// What it does:
+// - Uses NASA thumbnail_url first when present.
+// - If missing, tries to build a YouTube thumbnail URL from known formats.
+function getVideoPreviewUrl(item) {
+	// First choice: use NASA-provided thumbnail when available.
+	if (item.thumbnail_url) {
+		return item.thumbnail_url;
+	}
+
+	if (!item.url) {
+		return '';
+	}
+
+	// Backup for common YouTube formats when thumbnail_url is missing.
+	const youtubePatterns = [
+		/youtube\.com\/embed\/([^?&/]+)/i,
+		/youtube\.com\/watch\?v=([^?&/]+)/i,
+		/youtu\.be\/([^?&/]+)/i
+	];
+
+	for (const pattern of youtubePatterns) {
+		const match = item.url.match(pattern);
+
+		if (match && match[1]) {
+			return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+		}
+	}
+
+	return '';
+}
+
+// Function: isDirectVideoFileUrl
+// Input:
+// - url: any URL string.
+// Output:
+// - true if the URL looks like a direct video file (.mp4/.webm/.ogg), else false.
+// Why this helps:
+// - Direct video files can be previewed with <video> instead of needing a thumbnail image.
+function isDirectVideoFileUrl(url) {
+	if (!url) {
+		return false;
+	}
+
+	return /\.(mp4|webm|ogg)(\?|#|$)/i.test(url);
+}
+
+// Function: renderGallery
+// Input:
+// - items: APOD response (array or single object).
+// What it does:
+// - Normalizes data into an array.
+// - Keeps only media types our UI supports (image/video).
+// - Sorts newest to oldest and limits to 9 cards.
+// - Builds the HTML for each card (image preview or video preview/fallback).
+// - Stores visible items in currentGalleryItems so modal clicks can find full data.
 function renderGallery(items) {
 	// APOD can return one item or an array.
 	// Convert everything to an array so rendering is simpler.
@@ -248,10 +416,16 @@ function renderGallery(items) {
 		// - image card gets normal image element
 		const isVideo = item.media_type === 'video';
 		const imageUrl = item.url || item.hdurl;
+		const videoPreviewUrl = isVideo ? getVideoPreviewUrl(item) : '';
+		const canUseInlineVideoPreview = isVideo && !videoPreviewUrl && isDirectVideoFileUrl(item.url);
 		const cardMedia = isVideo
 			? `
 				<div class="video-preview">
-					${item.thumbnail_url ? `<img src="${item.thumbnail_url}" alt="Video preview: ${item.title}" loading="lazy" />` : '<div class="video-fallback">🎬 Video entry</div>'}
+					${videoPreviewUrl
+						? `<img src="${videoPreviewUrl}" alt="Video preview: ${item.title}" loading="lazy" />`
+						: canUseInlineVideoPreview
+							? `<video src="${item.url}" preload="metadata" autoplay muted playsinline loop aria-label="Video preview: ${item.title}"></video>`
+							: '<div class="video-fallback">Video preview unavailable</div>'}
 					<p class="video-label">Click to open video in modal</p>
 				</div>
 			`

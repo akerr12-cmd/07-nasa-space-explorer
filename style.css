@@ -214,7 +214,8 @@ button:hover {
   }
 }
 
-.gallery-item img {
+.gallery-item img,
+.gallery-item video {
   width: 100%;
   height: 200px;
   object-fit: cover;
@@ -224,7 +225,9 @@ button:hover {
 }
 
 .gallery-item:hover img,
-.gallery-item:focus-visible img {
+.gallery-item:focus-visible img,
+.gallery-item:hover video,
+.gallery-item:focus-visible video {
   transform: scale(1.06);
 }
 
@@ -391,6 +394,21 @@ button:hover {
   border: 2px solid rgba(11, 61, 145, 0.25);
   border-radius: 10px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.modal-video-fallback {
+  margin-top: 12px;
+  padding: 12px;
+  border-left: 4px solid var(--nasa-red);
+  border-radius: 8px;
+  background: rgba(252, 61, 33, 0.08);
+  color: #1a2540;
+  font-weight: 600;
+}
+
+.modal-video-fallback a {
+  color: var(--nasa-blue);
+  font-weight: 700;
 }
 
 .modal-title {

@@ -45,6 +45,11 @@
       <button id="modalCloseBtn" class="modal-close" aria-label="Close details">×</button>
       <img id="modalImage" class="modal-image" src="" alt="" />
       <iframe id="modalVideo" class="modal-video" src="" title="APOD video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen hidden></iframe>
+      <video id="modalVideoPlayer" class="modal-video" controls hidden></video>
+      <p id="modalVideoFallback" class="modal-video-fallback" hidden>
+        This video cannot be embedded here.
+        <a id="modalVideoLink" href="#" target="_blank" rel="noopener noreferrer">Open video in a new tab</a>.
+      </p>
       <h2 id="modalTitle" class="modal-title">Photo details</h2>
       <p id="modalDate" class="modal-date"></p>
       <p id="modalExplanation" class="modal-explanation"></p>
